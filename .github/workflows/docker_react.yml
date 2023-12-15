@@ -1,130 +1,130 @@
-name: Build and Deploy React App to Docker Swarm
+# name: Build and Deploy React App to Docker Swarm
 
-on:
-  push:
-    branches:
-      - release_prepreation # Change to your branch name as needed
+# on:
+#   push:
+#     branches:
+#       - release_prepreation # Change to your branch name as needed
 
-jobs:
-  build_and_push:
-    runs-on: ubuntu-latest
-    outputs:
-      build_required: ${{ steps.set_build_required.outputs.build_required }}
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # This ensures the entire repo history is available
+# jobs:
+#   build_and_push:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       build_required: ${{ steps.set_build_required.outputs.build_required }}
+#     steps:
+#       - name: Check out the repo
+#         uses: actions/checkout@v3
+#         with:
+#           fetch-depth: 0 # This ensures the entire repo history is available
 
-      - name: Set build required output
-        id: set_build_required
-        run: |
-          if git diff --name-only $GITHUB_SHA ${{ github.event.before }} | grep 'Frontend/dashboard/'; then
-            echo "build_required=true" >> $GITHUB_ENV
-            echo "::set-output name=build_required::true"
-          else
-            echo "build_required=false" >> $GITHUB_ENV
-            echo "::set-output name=build_required::false"
-          fi
+#       - name: Set build required output
+#         id: set_build_required
+#         run: |
+#           if git diff --name-only $GITHUB_SHA ${{ github.event.before }} | grep 'Frontend/dashboard/'; then
+#             echo "build_required=true" >> $GITHUB_ENV
+#             echo "::set-output name=build_required::true"
+#           else
+#             echo "build_required=false" >> $GITHUB_ENV
+#             echo "::set-output name=build_required::false"
+#           fi
 
-      - name: Debug output
-        run: |
-          if [[ $BUILD_REQUIRED == 'true' ]]; then
-            echo "Build is required for the React app."
-          else
-            echo "Build is not required for the React app."
-          fi
-        env:
-          BUILD_REQUIRED: ${{ steps.set_build_required.outputs.build_required }}
+#       - name: Debug output
+#         run: |
+#           if [[ $BUILD_REQUIRED == 'true' ]]; then
+#             echo "Build is required for the React app."
+#           else
+#             echo "Build is not required for the React app."
+#           fi
+#         env:
+#           BUILD_REQUIRED: ${{ steps.set_build_required.outputs.build_required }}
 
-      - name: Log in to GitHub Container Registry
-        if: steps.set_build_required.outputs.build_required == 'true'
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.PAT }}
+#       - name: Log in to GitHub Container Registry
+#         if: steps.set_build_required.outputs.build_required == 'true'
+#         uses: docker/login-action@v1
+#         with:
+#           registry: ghcr.io
+#           username: ${{ secrets.GHCR_USERNAME }}
+#           password: ${{ secrets.PAT }}
 
-      - name: Build and push Docker image for React app
-        if: steps.set_build_required.outputs.build_required == 'true'
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: Frontend/dashboard/Dockerfile # Specify the path to your React Dockerfile
-          push: true
-          tags: ghcr.io/${{ secrets.GHCR_USERNAME }}/react-app-dev:latest # Tag accordingly
+#       - name: Build and push Docker image for React app
+#         if: steps.set_build_required.outputs.build_required == 'true'
+#         uses: docker/build-push-action@v2
+#         with:
+#           context: .
+#           file: Frontend/dashboard/Dockerfile # Specify the path to your React Dockerfile
+#           push: true
+#           tags: ghcr.io/${{ secrets.GHCR_USERNAME }}/react-app-dev:latest # Tag accordingly
 
-  deploy_react:
-    name: Deploy React App to server
-    runs-on: ubuntu-latest
-    needs: build_and_push # This assumes you have a prior job named 'build_and_push' for the React app
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # This ensures the entire repo history is available
+#   deploy_react:
+#     name: Deploy React App to server
+#     runs-on: ubuntu-latest
+#     needs: build_and_push # This assumes you have a prior job named 'build_and_push' for the React app
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+#         with:
+#           fetch-depth: 0 # This ensures the entire repo history is available
 
-      - name: Deploy to Docker Swarm
-        uses: appleboy/ssh-action@v0.1.4
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # Ensure Docker Swarm is initialized
-            if ! docker info | grep -q 'Swarm: active'; then
-                echo "Initializing Docker Swarm..."
-                docker swarm init || { echo "Failed to initialize Docker Swarm"; exit 1; }
-            fi
+#       - name: Deploy to Docker Swarm
+#         uses: appleboy/ssh-action@v0.1.4
+#         with:
+#           host: ${{ secrets.SERVER_HOST }}
+#           username: ${{ secrets.SERVER_USERNAME }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             # Ensure Docker Swarm is initialized
+#             if ! docker info | grep -q 'Swarm: active'; then
+#                 echo "Initializing Docker Swarm..."
+#                 docker swarm init || { echo "Failed to initialize Docker Swarm"; exit 1; }
+#             fi
 
-            # Convert repository owner to lowercase and store in a variable
-            REPO_OWNER_LOWER=$(echo "${{ secrets.GHCR_USERNAME }}" | tr '[:upper:]' '[:lower:]')
-            IMAGE="ghcr.io/$REPO_OWNER_LOWER/react-app-dev:latest"
+#             # Convert repository owner to lowercase and store in a variable
+#             REPO_OWNER_LOWER=$(echo "${{ secrets.GHCR_USERNAME }}" | tr '[:upper:]' '[:lower:]')
+#             IMAGE="ghcr.io/$REPO_OWNER_LOWER/react-app-dev:latest"
 
-            # Attempt to login to GitHub Container Registry
-            echo "Logging in to GitHub Container Registry..."
-            echo ${{ secrets.PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+#             # Attempt to login to GitHub Container Registry
+#             echo "Logging in to GitHub Container Registry..."
+#             echo ${{ secrets.PAT }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
 
-            # Check if the image exists in the registry
-            echo "Checking if the image $IMAGE exists in the registry..."
-            if docker pull $IMAGE; then
-                echo "Image exists. Proceeding with deployment...."
+#             # Check if the image exists in the registry
+#             echo "Checking if the image $IMAGE exists in the registry..."
+#             if docker pull $IMAGE; then
+#                 echo "Image exists. Proceeding with deployment...."
 
-                # Check if the shared_network exists, if not, create it
-                docker network ls | grep sod3_test_network || docker network create --driver=overlay --attachable sod3_test_network
+#                 # Check if the shared_network exists, if not, create it
+#                 docker network ls | grep sod3_test_network || docker network create --driver=overlay --attachable sod3_test_network
 
-                # Remove the old service if it exists
-                docker service rm test_react_service || true
+#                 # Remove the old service if it exists
+#                 docker service rm test_react_service || true
 
-                # Create the service and pass the secret as an environment variable
-                docker service create \
-                --name test_react_service \
-                --network sod3_test_network \
-                --publish published=3333,target=3333 \
-                $IMAGE
+#                 # Create the service and pass the secret as an environment variable
+#                 docker service create \
+#                 --name test_react_service \
+#                 --network sod3_test_network \
+#                 --publish published=3333,target=3333 \
+#                 $IMAGE
 
-            else
-                echo "Image does not exist or cannot be accessed."
-                echo "Checking permissions and repository settings..."
+#             else
+#                 echo "Image does not exist or cannot be accessed."
+#                 echo "Checking permissions and repository settings..."
 
-                # Check for read:packages permission
-                echo "Checking for read:packages permission..."
-                TOKEN_PERMISSIONS=$(curl -H "Authorization: token ${{ secrets.PAT }}" https://api.github.com/user/permissions)
-                echo "Token permissions: $TOKEN_PERMISSIONS"
+#                 # Check for read:packages permission
+#                 echo "Checking for read:packages permission..."
+#                 TOKEN_PERMISSIONS=$(curl -H "Authorization: token ${{ secrets.PAT }}" https://api.github.com/user/permissions)
+#                 echo "Token permissions: $TOKEN_PERMISSIONS"
 
-                # If permissions are insufficient, exit the job with an error
-                if [[ $TOKEN_PERMISSIONS != *"read:packages"* ]]; then
-                    echo "The PAT does not have read:packages permission."
-                    exit 1
-                else
-                    echo "The PAT has read:packages permission..."
-                fi
+#                 # If permissions are insufficient, exit the job with an error
+#                 if [[ $TOKEN_PERMISSIONS != *"read:packages"* ]]; then
+#                     echo "The PAT does not have read:packages permission."
+#                     exit 1
+#                 else
+#                     echo "The PAT has read:packages permission..."
+#                 fi
 
-                # Exit with an error
-                exit 1
-            fi
+#                 # Exit with an error
+#                 exit 1
+#             fi
 
-            # After updating or creating the service, additional steps can be added to verify the deployment
-            echo "Deployment action completed."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#             # After updating or creating the service, additional steps can be added to verify the deployment
+#             echo "Deployment action completed."
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
