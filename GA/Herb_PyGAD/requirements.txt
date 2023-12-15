@@ -1,0 +1,5 @@
+pygad
+numpy
+jproperties
+sqlalchemy
+psycopg2-binary

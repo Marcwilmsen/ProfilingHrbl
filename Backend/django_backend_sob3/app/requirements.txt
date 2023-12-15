@@ -1,0 +1,12 @@
+django
+sqlalchemy
+django-rest_framework
+load_dotenv
+django-cors-headers
+pandas
+openpyxl
+alembic
+gunicorn
+psycopg2
+whitenoise
+packages/herbga-1.1.9+kobolt-py3-none-any.whl

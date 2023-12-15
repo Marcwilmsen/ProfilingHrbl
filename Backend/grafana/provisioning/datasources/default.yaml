@@ -1,0 +1,20 @@
+# Grafana/provisioning/datasources/default.yaml
+
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+url: 161.97.173.83:5433
+    user: postgres
+    secureJsonData:
+      password: "${POSTGRES_PASSWORD}"
+    database: postgres
+    uid: a79d6f0a-5ade-455b-8b61-1312f9cbe937
+    jsonData:
+      tlsAuth: false
+      tlsSkipVerify: true
+      sslmode: disable # Corrected the sslmode configuration
+      # Other parameters as needed
+    isDefault: true
