@@ -16,4 +16,4 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
 # Use Gunicorn to serve the app
-CMD ["gunicorn", "sob3.wsgi:application", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "sob3.wsgi:application", "--bind", "0.0.0.0:8000"]
