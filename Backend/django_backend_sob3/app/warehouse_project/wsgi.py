@@ -14,3 +14,12 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "warehouse_project.settings")
 
 application = get_wsgi_application()
+
+import signal
+global shutdown_event
+def signal_handler(signum, frame):
+    global shutdown_event
+    shutdown_event = True
+
+# Register the signal handler
+signal.signal(signal.SIGINT, signal_handler)

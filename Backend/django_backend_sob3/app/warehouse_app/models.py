@@ -1,27 +1,24 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import JSON, BigInteger, create_engine, Column, Integer, String, Float, ForeignKey, Date
+from sqlalchemy import JSON, BigInteger, Boolean, create_engine, Column, Integer, String, Float, ForeignKey, Date, DateTime, func
 from sqlalchemy.orm import relationship, sessionmaker
 import os
-from sqlalchemy import DDL, event
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path='../.env')
+load_dotenv(dotenv_path='./.env')
 
 Base = declarative_base()
 
-# Database credentials and settings
+# Database credentials and settings..
 DB_NAME = os.environ.get('DB_NAME', 'postgres')
 DB_USER = os.environ.get('DB_USER', 'postgres')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
-DB_HOST = os.environ.get('DB_HOST', '92.68.232.34')
+DB_HOST = os.environ.get('DB_HOST', '161.97.173.83')
 DB_PORT = os.environ.get('DB_PORT', '5433')
 
-print("password:", os.environ.get('DB_PASSWORD', ''))
-
 DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, future=True)
+
 
 
 class Location(Base):
@@ -72,8 +69,8 @@ class Order(Base):
     carrier = Column(String)
 
     boxes = relationship("OrderBox", back_populates="order")
-    picks = relationship("PickData_Entries", secondary="order_boxes",
-                         back_populates="order", overlaps="boxes,box")
+    # One-to-many relationship
+    picks = relationship("PickData_Entries", back_populates="order")
 
 
 class OrderBox(Base):
@@ -84,9 +81,8 @@ class OrderBox(Base):
     box_name = Column(String)
     order_id = Column(String, ForeignKey('orders.order_number'))
 
-    picks = relationship("PickData_Entries",
-                         back_populates="box", overlaps="order")
-    order = relationship("Order", back_populates="boxes", overlaps="picks")
+    order = relationship("Order", back_populates="boxes")
+    picks = relationship("PickData_Entries", back_populates="box")
 
 
 class PickData_Entries(Base):
@@ -99,11 +95,13 @@ class PickData_Entries(Base):
     location_code = Column(String, ForeignKey('locations.location'))
     box_number = Column(String, ForeignKey('order_boxes.box_number'))
     pickdata_id = Column(Integer, ForeignKey('pickdata.id'))
+    order_number = Column(String, ForeignKey(
+        'orders.order_number'))  # Foreign key to Order
 
     pickdata = relationship("PickData", back_populates="entries")
-    box = relationship("OrderBox", back_populates="picks", overlaps="order")
-    order = relationship("Order", secondary="order_boxes",
-                         back_populates="picks", overlaps="box,boxes")
+    box = relationship("OrderBox", back_populates="picks")
+    # Many-to-one relationship
+    order = relationship("Order", back_populates="picks")
 
 
 class PickData(Base):
@@ -111,18 +109,19 @@ class PickData(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    pickdata_file = Column(String)
 
     entries = relationship("PickData_Entries", back_populates="pickdata")
 
 # WAREHOUSE PROFILE TABLES
-# Corrected WarehouseProfile class
+# Corrected WarehouseProfile class....
 
 
 class WarehouseProfile(Base):
     __tablename__ = 'warehouse_profiles'
     id = Column(Integer, primary_key=True)
     name = Column(String, index=True)
-    creation_timestamp = Column(Date)
+    creation_timestamp = Column(DateTime)
 
     # Ensure the relationship is correctly defined
     parameters = relationship("WarehouseParameter",
@@ -135,11 +134,9 @@ class WarehouseSolutionProfile(Base):
     __tablename__ = 'warehouse_solution_profiles'
     id = Column(Integer, primary_key=True)
     name = Column(String, index=True)
-    creation_timestamp = Column(Date)
-
-    # Correct relationship to WarehouseSolutionParameter
-    solution_parameters = relationship(
-        "WarehouseSolutionParameter", back_populates="warehouse_solution_profile")
+    creation_timestamp = Column(DateTime)
+    solution_start_parameters = relationship(
+        "WarehouseSolutionStartParameter", back_populates="warehouse_solution_profile")
     solution_location_assignments = relationship(
         "SolutionLocationAssignment", backref="related_warehouse_solution_profile")
 
@@ -185,18 +182,18 @@ class WarehouseParameter(Base):
         "WarehouseProfile", back_populates="parameters")
 
 
-class WarehouseSolutionParameter(Base):
-    __tablename__ = 'warehouse_solution_parameters'
+class WarehouseSolutionStartParameter(Base):
+    __tablename__ = 'warehouse_solution_start_parameters'
     id = Column(Integer, primary_key=True)
     warehouse_solution_profile_id = Column(
         Integer, ForeignKey('warehouse_solution_profiles.id'))
-    parameter_name = Column(String)
-    value = Column(String)
-
-    # Correct relationship to WarehouseSolutionProfile
+    number_of_generations = Column(Integer)
+    algo_from_date = Column(Date)
+    algo_too_date = Column(Date)
+    day_where_algo_was_started = Column(DateTime)
+    percentage_to_stop = Column(Integer)
     warehouse_solution_profile = relationship(
-        "WarehouseSolutionProfile", back_populates="solution_parameters")
-
+            "WarehouseSolutionProfile", back_populates="solution_start_parameters")
 
 # RESULT TEMP TABLES
 
@@ -213,7 +210,7 @@ class HistoricalResults(Base):
     __tablename__ = 'historicalresults'
 
     id = Column(Integer, primary_key=True)
-    date = Column(Date)
+    date = Column(DateTime)
     solution = Column(JSON)
     fitness = Column(String)
 
@@ -237,7 +234,6 @@ class ZipZapEntries(Base):
     zipzap_id = Column(Integer, ForeignKey('zipzap.id'))
     expected = Column(Float)
     actual = Column(Float)
-    # This relationship should correctly refer back to the 'zipzapentries' in ZipZap
     zipzap = relationship("ZipZap", back_populates="zipzapentries")
 
 

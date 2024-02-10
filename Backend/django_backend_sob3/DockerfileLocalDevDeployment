@@ -1,0 +1,34 @@
+
+LOCAL DEPLOYMENT
+
+# Use Tiangolo's Uvicorn image optimized for Django
+FROM tiangolo/uvicorn-gunicorn:python3.11-slim
+
+# Install tini
+RUN apt-get update && apt-get install -y tini
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV UVICORN_WORKER_CLASS "uvicorn.workers.UvicornWorker"
+ENV UVICORN_TIMEOUT_KEEP_ALIVE 3600
+
+# Set the working directory in the container to /app
+WORKDIR /app
+# Create the 'packages' directory
+RUN mkdir /app/packages
+
+# Install required packages
+RUN pip install --upgrade pip && pip install gunicorn
+
+# Copy the Django project requirements and entrypoint script into the container
+COPY app/requirements.txt /app/
+COPY app/entrypoint.sh /app/
+
+COPY app/packages/herbga-2.5+zeus-py3-none-any.whl /app/packages
+
+# Install required packages
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Use tini as the entry point to handle signals properly
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/entrypoint.sh"]

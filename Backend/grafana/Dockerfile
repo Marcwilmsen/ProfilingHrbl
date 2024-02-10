@@ -4,7 +4,7 @@ FROM grafana/grafana:latest
 ENV GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
 
 # Change default port to 3001
-ENV GF_SERVER_HTTP_PORT 3000
+ENV GF_SERVER_HTTP_PORT 3001
 
 # Copy the provisioning files
 COPY Backend/grafana/provisioning /etc/grafana/provisioning

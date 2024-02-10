@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '1.1.9+Kobolt'
+VERSION = '2.5.2+Zeus'
 
 setup(
    name="herbga",

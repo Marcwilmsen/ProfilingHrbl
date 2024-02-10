@@ -1,0 +1,390 @@
+{
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": {
+					"type": "grafana",
+					"uid": "-- Grafana --"
+				},
+				"enable": true,
+				"hide": true,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard"
+			}
+		]
+	},
+	"editable": true,
+	"fiscalYearStartMonth": 0,
+	"graphTooltip": 0,
+	"id": 3,
+	"links": [],
+	"liveNow": false,
+	"panels": [
+		{
+			"datasource": {
+				"type": "grafana-postgresql-datasource",
+				"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 80
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 9,
+				"w": 11,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"options": {
+				"minVizHeight": 200,
+				"minVizWidth": 200,
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["allValues"],
+					"fields": "/^distribution$/",
+					"values": true
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true,
+				"sizing": "auto",
+				"text": {}
+			},
+			"pluginVersion": "10.2.3",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-postgresql-datasource",
+						"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+					},
+					"editorMode": "code",
+					"format": "table",
+					"rawQuery": true,
+					"rawSql": "WITH TotalPicks AS (\n  SELECT\n    SUM(count_picks) AS total\n  FROM\n    solution_picks_per_country_per_master_area_entrys\n  WHERE\n    master_area = 'm1'\n    AND solution_picks_id = 1\n    AND country IN ('CH', 'NO')\n)\nSELECT\n  spcmae.country,\n  spcmae.count_picks,\n  ROUND((spcmae.count_picks::DECIMAL / tp.total) * 100, 2) AS distribution\nFROM\n  solution_picks_per_country_per_master_area_entrys spcmae,\n  TotalPicks tp\nWHERE\n  spcmae.master_area = 'm1'\n  AND spcmae.solution_picks_id = 1\n  AND spcmae.country IN ('CH', 'NO');\n",
+					"refId": "A",
+					"sql": {
+						"columns": [
+							{
+								"parameters": [],
+								"type": "function"
+							}
+						],
+						"groupBy": [
+							{
+								"property": {
+									"type": "string"
+								},
+								"type": "groupBy"
+							}
+						],
+						"limit": 50
+					}
+				}
+			],
+			"title": "Shipping window 1",
+			"transparent": true,
+			"type": "gauge"
+		},
+		{
+			"datasource": {
+				"type": "grafana-postgresql-datasource",
+				"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+			},
+			"description": "",
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"fieldMinMax": false,
+					"mappings": [
+						{
+							"options": {
+								"100": {
+									"index": 0,
+									"text": "GE 100%"
+								}
+							},
+							"type": "value"
+						}
+					],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 80
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 9,
+				"w": 4,
+				"x": 11,
+				"y": 0
+			},
+			"id": 3,
+			"options": {
+				"minVizHeight": 200,
+				"minVizWidth": 200,
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "/^distribution$/",
+					"values": false
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true,
+				"sizing": "auto",
+				"text": {}
+			},
+			"pluginVersion": "10.2.3",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-postgresql-datasource",
+						"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+					},
+					"editorMode": "code",
+					"format": "table",
+					"rawQuery": true,
+					"rawSql": "WITH TotalPicks AS (\n  SELECT\n    SUM(count_picks) AS total\n  FROM\n    solution_picks_per_country_per_master_area_entrys\n  WHERE\n    master_area = 'm1'\n    AND solution_picks_id = 1\n    AND country IN ('GE')\n)\nSELECT\n  spcmae.country,\n  spcmae.count_picks,\n  ROUND((spcmae.count_picks::DECIMAL / tp.total) * 100, 2) AS distribution\nFROM\n  solution_picks_per_country_per_master_area_entrys spcmae,\n  TotalPicks tp\nWHERE\n  spcmae.master_area = 'm1'\n  AND spcmae.solution_picks_id = 1\n  AND spcmae.country IN ('GE');\n",
+					"refId": "A",
+					"sql": {
+						"columns": [
+							{
+								"parameters": [],
+								"type": "function"
+							}
+						],
+						"groupBy": [
+							{
+								"property": {
+									"type": "string"
+								},
+								"type": "groupBy"
+							}
+						],
+						"limit": 50
+					}
+				}
+			],
+			"title": "Shipping window 2",
+			"transparent": true,
+			"type": "gauge"
+		},
+		{
+			"datasource": {
+				"type": "grafana-postgresql-datasource",
+				"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 80
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 9,
+				"w": 9,
+				"x": 15,
+				"y": 0
+			},
+			"id": 5,
+			"options": {
+				"minVizHeight": 200,
+				"minVizWidth": 200,
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["allValues"],
+					"fields": "/^distribution$/",
+					"values": true
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true,
+				"sizing": "auto",
+				"text": {}
+			},
+			"pluginVersion": "10.2.3",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-postgresql-datasource",
+						"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+					},
+					"editorMode": "code",
+					"format": "table",
+					"rawQuery": true,
+					"rawSql": "WITH TotalPicks AS (\n  SELECT\n    SUM(count_picks) AS total\n  FROM\n    solution_picks_per_country_per_master_area_entrys\n  WHERE\n    master_area = 'm1'\n    AND solution_picks_id = 1\n    AND country IN ('SW', 'FI')\n)\nSELECT\n  spcmae.country,\n  spcmae.count_picks,\n  ROUND((spcmae.count_picks::DECIMAL / tp.total) * 100, 2) AS distribution\nFROM\n  solution_picks_per_country_per_master_area_entrys spcmae,\n  TotalPicks tp\nWHERE\n  spcmae.master_area = 'm1'\n  AND spcmae.solution_picks_id = 1\n  AND spcmae.country IN ('SW', 'FI');\n",
+					"refId": "A",
+					"sql": {
+						"columns": [
+							{
+								"parameters": [],
+								"type": "function"
+							}
+						],
+						"groupBy": [
+							{
+								"property": {
+									"type": "string"
+								},
+								"type": "groupBy"
+							}
+						],
+						"limit": 50
+					}
+				}
+			],
+			"title": "Shipping window 3",
+			"transparent": true,
+			"type": "gauge"
+		},
+		{
+			"datasource": {
+				"type": "grafana-postgresql-datasource",
+				"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 80
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 9,
+				"w": 24,
+				"x": 0,
+				"y": 9
+			},
+			"id": 6,
+			"options": {
+				"minVizHeight": 200,
+				"minVizWidth": 200,
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["allValues"],
+					"fields": "/^distribution$/",
+					"values": true
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true,
+				"sizing": "auto",
+				"text": {}
+			},
+			"pluginVersion": "10.2.3",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-postgresql-datasource",
+						"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+					},
+					"editorMode": "code",
+					"format": "table",
+					"rawQuery": true,
+					"rawSql": "WITH TotalPicks AS (\n  SELECT\n    SUM(count_picks) AS total\n  FROM\n    solution_picks_per_country_per_master_area_entrys\n  WHERE\n    master_area = 'm1'\n    AND solution_picks_id = 1\n    AND country IN ('NL', 'MT', 'UK', 'FR', 'BE', 'AU', 'SZ', 'DA', 'EI')\n)\nSELECT\n  spcmae.country,\n  spcmae.count_picks,\n  ROUND((spcmae.count_picks::DECIMAL / tp.total) * 100, 2) AS distribution\nFROM\n  solution_picks_per_country_per_master_area_entrys spcmae,\n  TotalPicks tp\nWHERE\n  spcmae.master_area = 'm1'\n  AND spcmae.solution_picks_id = 1\n  AND spcmae.country IN ('NL', 'MT', 'UK', 'FR', 'BE', 'AU', 'SZ', 'DA', 'EI');\n",
+					"refId": "A",
+					"sql": {
+						"columns": [
+							{
+								"parameters": [],
+								"type": "function"
+							}
+						],
+						"groupBy": [
+							{
+								"property": {
+									"type": "string"
+								},
+								"type": "groupBy"
+							}
+						],
+						"limit": 50
+					}
+				}
+			],
+			"title": "Shipping window 3",
+			"transparent": true,
+			"type": "gauge"
+		}
+	],
+	"refresh": "",
+	"schemaVersion": 39,
+	"tags": [],
+	"templating": {
+		"list": []
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
+	"timepicker": {},
+	"timezone": "",
+	"title": "New dashboard",
+	"uid": "edea6084-f6db-4aa5-8164-29a1af3ddca9",
+	"version": 9,
+	"weekStart": ""
+}

@@ -1,68 +1,176 @@
 import logging
 import random
+import re
+
 import numpy as np
 
-from Herb_PyGAD.fitness.zoneCutter import cut_solution_array_into_zones
+from . import main
 
+# Big brain code energy gone
 logger = logging.getLogger('py_gad')
 
 
 def custom_crossover(parents, offspring_size, ga_instance):
-    """
-        The crossover uses the parent to randomly select two zones in the pareents array.
-        Then the algorithm randomly selects the number of elements to cut
-        The same amount of products are cut from the end of each zone (Done so because not every zone has the same length)
-        The 4 cut zones are crossed
-        Zone 1 -> Zone 1.1 + Zone 1.2
-        Zone 2 -> Zone 2.1 + Zone 2.2
-
-        Children
-        newZone 1 -> Zone 1.2 + Zone 2.2
-        newZone 2 -> Zone 2.1 + Zone 1.2
-
-        NewParent contains the swapped zones and is added to the array of children that is returned at the end.
-
-
-        Complexity:
-        O(n)
-
-        Parameters:
-        - parents ([Int]): An Array of ints representing the id of the product. The parent array is randomly selected by the GA
-        - offspring_size (tuple(Amount of children, length of each child)): Only the amount of children that should be produced are interesting in this method
-
-        Returns:
-        An array of children
-    """
     offspring = []
 
     while len(offspring) < offspring_size[0]:
+        solution = parents[len(offspring)].copy()
+        number_of_elements_to_switch = int(len(solution) / 20)
 
-        logging.debug("Parent before crossover: {}".format(parents[len(offspring)]))
-        zones = cut_solution_array_into_zones(parents[len(offspring)])
-        
-        random_zone_idx_1 = random.randint(0,len(zones)-1)
-        random_zone_idx_2 = random.randint(0,len(zones)-1)
-        random_zone_1 = zones[random_zone_idx_1]
-        random_zone_2 = zones[random_zone_idx_2]
+        for i in range(1, number_of_elements_to_switch):
+            idx1, idx2 = random.randint(0, len(main.locations) - 1), random.randint(0, len(main.locations) - 1)
+            product1, product2 = solution[idx1], solution[idx2]
+            slot1, slot2 = main.locations[idx1], main.locations[idx2]
 
-        logging.debug("Zone A (before crossover): {}".format(random_zone_1))
-        logging.debug("Zone A (before crossover): {}".format(random_zone_2))
+            if main.number_of_lanes.get(product1) == main.number_of_lanes.get(product1):
+                product1_bool = product_can_be_placed_at_slot(main.constraints.get(product1), slot2)
+                product2_bool = product_can_be_placed_at_slot(main.constraints.get(product2), slot1)
 
-        number_of_elements_to_switch = random.randint(1, len(random_zone_1)-1)
-        if number_of_elements_to_switch < len(random_zone_1) and number_of_elements_to_switch < len(random_zone_2):
-            start_1 = random_zone_1[:len(random_zone_1) - number_of_elements_to_switch]
-            stop_1 = random_zone_1[len(random_zone_1) - number_of_elements_to_switch:]
+                if product1_bool and product2_bool:
+                    # if slot2[:2] == "32":
+                    # logger.info(f"swapped product: {product1} with constraints: {main.constraints.get(product1)} to {slot2}")
+                    # if slot1[:2] == "32":
+                    # logger.info(f"swapped product: {product2} with constraints: {main.constraints.get(product2)} to {slot1}")
+                    tmp = solution[idx1]
+                    solution[idx1] = solution[idx2]
+                    solution[idx2] = tmp
 
-            start_2 = random_zone_2[:len(random_zone_2) - number_of_elements_to_switch]
-            stop_2 = random_zone_2[len(random_zone_2) - number_of_elements_to_switch:]
+        offspring.append(solution)
 
-            zones[random_zone_idx_1] = np.concatenate((start_1, stop_2), axis=None)
-            zones[random_zone_idx_2] = np.concatenate((start_2, stop_1), axis=None)
-
-        logging.debug("Zone A (after crossover): {}".format(zones[random_zone_idx_1]))
-        logging.debug("Zone B (after crossover): {}".format(zones[random_zone_idx_2]))
-        newParent = np.concatenate(zones, axis=None)
-        logging.debug("Edited parent after crossover: {}".format(newParent))
-
-        offspring.append(newParent)
     return np.array(offspring)
+
+
+def product_can_be_placed_at_slot(product_constraint, destination_slot):
+    if product_constraint is None:
+        return True
+
+    if len(product_constraint) == 0:
+        return True
+
+    if (check_for_zone_constraint(product_constraint, destination_slot) and
+            check_for_level_constraint(product_constraint, destination_slot) and
+            check_for_slot_constraint(product_constraint, destination_slot) and
+            check_for_even_odd_constraint(product_constraint, destination_slot) and
+            check_for_location_type_constraint(product_constraint, destination_slot)):
+        return True
+
+    # if check_for_zone_constraint(product_constraint, destination_slot):
+    #   return True
+
+    return False
+
+
+def check_for_slot_constraint(product_constraint, destination_slot):
+    regex_pattern = r'\d\d[A-D]\d\d'  # Regex pattern for exactly two digits
+    matched_strings = find_matching_strings(regex_pattern, product_constraint)
+
+    if (len(matched_strings) == 0):
+        # No slot constraint for this product
+        return True
+
+    # if (len(matched_strings) > 0):
+        # logger.info(f"Found slot constraint in {product_constraint} and returned {matched_strings}")
+
+    if destination_slot[0] == matched_strings[0]:
+        return True
+    elif destination_slot[0] != matched_strings[0]:
+        # Destination slot NOT equal to the constraint slot. Violated constraint here
+        return False
+
+    return True
+
+
+def check_for_level_constraint(product_constraint, destination_slot):
+    regex_pattern = r'^[ABCD]$'  # Regex pattern for exactly one letter of A, B, C or D
+    matched_strings = find_matching_strings(regex_pattern, product_constraint)
+    level = find_matching_strings(regex_pattern, destination_slot)
+
+    if (len(matched_strings) == 0 or len(level) == 0):
+        # No level constraint for this product or no level found in the location (2nd should not happen)
+        return True
+
+    # if (len(matched_strings) > 0):
+        # logger.info(f"Found level constraint in {product_constraint} and returned {matched_strings}")
+
+    if level[0] in matched_strings:
+        return True
+    elif level[0] not in matched_strings:
+        # Destination level NOT in the constraints list. Violated constraint here
+        return False
+
+    return True
+
+
+def check_for_zone_constraint(product_constraint, destination_slot):
+    regex_pattern = r'^\d{2}$'  # Regex pattern for exactly two digits
+    matched_strings = find_matching_strings(regex_pattern, product_constraint)
+
+    if (len(matched_strings) == 0):
+        # No zone constraint for this  product
+        return True
+
+    # if (len(matched_strings) > 0):
+        # logger.info(f"Found zone constraint in {product_constraint} and returned {matched_strings}")
+
+    if destination_slot[:2] in matched_strings:
+        return True
+    elif destination_slot[:2] not in matched_strings:
+        # Destination zone NOT in the constraints list. Violated constraint here
+        return False
+
+    return True
+
+
+def check_for_even_odd_constraint(product_constraint, destination_slot):
+    regex_pattern = r'\b(EVEN|ODD)\b'  # Regex pattern for the word EVEN and the word ODD
+    matched_strings = find_matching_strings(regex_pattern, product_constraint)
+
+    if (len(matched_strings) == 0):
+        # No EVEN ODD constraint for this  product
+        return True
+
+    #if (len(matched_strings) > 0):
+        # logger.info(f"Found even/odd constraint in {product_constraint} and returned {matched_strings}")
+
+    if main.location_side_constraints.get(destination_slot) == matched_strings[0]:
+        return True
+    elif main.location_side_constraints.get(destination_slot) != matched_strings[0]:
+        # EVEN/ODD constraint not in constraint list. Constraint violation here
+        return False
+
+    return True
+
+
+def check_for_location_type_constraint(product_constraint, destination_slot):
+    # Checks if the product has an Locationtype constraint ['FLOW' 'HIGHVALUE' 'WBS' 'WBSFLOW']
+    regex_pattern = r'\b(' + '|'.join(
+        main.all_unique_location_types) + r')\b'  # Regex pattern for the words from unique location types
+    matched_strings = find_matching_strings(regex_pattern, product_constraint)
+
+    if (len(matched_strings) == 0):
+        # No location type constraint for this  product
+        return True
+
+    # if (len(matched_strings) > 0):
+        # logger.info(f"Found type constraint in {product_constraint}")
+
+    if main.location_type_constraints.get(destination_slot) in matched_strings:
+        return True
+    elif main.location_type_constraints.get(destination_slot) not in matched_strings:
+        # Locationtype constraint ['FLOW' 'HIGHVALUE' 'WBS' 'WBSFLOW'] not in constraint list. Constraint violation here
+        return False
+
+    return True
+
+
+def find_matching_strings(regex, string_array):
+    """
+    Returns all strings from the string_array that match the given regex pattern.
+
+    :param regex: A string representing the regex pattern to match against.
+    :param string_array: A list of strings to be checked against the regex.
+    :return: A list of strings that match the regex pattern.
+    """
+    pattern = re.compile(regex)
+    matching_strings = [s for s in string_array if pattern.fullmatch(s)]
+    return matching_strings

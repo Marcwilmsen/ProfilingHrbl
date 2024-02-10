@@ -6,12 +6,12 @@ datasources:
   - name: PostgreSQL
     type: postgres
     access: proxy
-url: 92.68.232.34:5433
+    url: 161.97.173.83:5433
     user: postgres
     secureJsonData:
       password: "${POSTGRES_PASSWORD}"
     database: postgres
-    uid: b96049c8-1584-454c-a360-afb5de5c2320
+    uid: a79d6f0a-5ade-455b-8b61-1312f9cbe937
     jsonData:
       tlsAuth: false
       tlsSkipVerify: true

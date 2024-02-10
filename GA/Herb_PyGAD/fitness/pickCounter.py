@@ -1,7 +1,3 @@
-import Herb_PyGAD.main
-from ..testData import country_groups_for_area
-import numpy as np
-
 
 def get_total_picks_per_group(count_all_zones):
     """
@@ -36,7 +32,7 @@ def get_total_picks_per_group(count_all_zones):
     return group_picks
 
 
-def count_picks_per_master_area_per_group(zones_dict, country_groups):
+def count_picks_per_master_area_per_group(solution_cut_in_masterareas_dict, country_groups, countries_dict, pickdata_dict):
     """
         count_picks_per_master_area_per_group countrs the picks per masterarea per each country group.
         The picks for each masterarea for each group are counted by Count_picks_for_country.
@@ -46,7 +42,7 @@ def count_picks_per_master_area_per_group(zones_dict, country_groups):
         # O(n x m x s x g)
 
         Parameters:
-        - zones_dict ({}): A dictionary containing the mastereas
+        - solution_cut_in_masterareas_dict ({}): A dictionary containing the mastereas
         e.g.: "master_zones = {
                     'm1': [m1_Zones],
                     'm2': [m2_Zones],
@@ -62,10 +58,10 @@ def count_picks_per_master_area_per_group(zones_dict, country_groups):
     """
     picks_counts = {}
 
-    for zone_name, zone_data in zones_dict.items():
+    for zone_name, zone_data in solution_cut_in_masterareas_dict.items():
         picks_for_zone = []
         for countries in country_groups:
-            count = count_picks_for_country_group(zone_data, countries)
+            count = count_picks_for_country_group(zone_data, countries, countries_dict, pickdata_dict)
             picks_for_zone.append(count)
         picks_counts[zone_name] = picks_for_zone
 
@@ -75,6 +71,9 @@ def count_picks_per_master_area_per_group(zones_dict, country_groups):
 def check_matching_strings(array1, array2):
     # Convert both arrays to sets for efficient lookup
     set1 = set(array1)
+    if type(array1) != list:
+        set1 = set([array1])
+
     set2 = set(array2)
 
     # Find the intersection of the two sets
@@ -84,7 +83,7 @@ def check_matching_strings(array1, array2):
     return len(intersection) > 0
 
 
-def count_picks_for_country_group(solution, group):
+def count_picks_for_country_group(solution, group, countries, pickdata):
     """
         Count_picks_for_country gets a solution and a group.
 
@@ -106,21 +105,32 @@ def count_picks_for_country_group(solution, group):
     for product in solution:
         # if np.intersect1d(Herb_PyGAD.main.countries.get(product), group) > 0:
         # if Herb_PyGAD.main.countries.get(product) in group:
-        if check_matching_strings(Herb_PyGAD.main.countries.get(int(product), []), group):
-            total_picks += Herb_PyGAD.main.pickdata.get(product)
+        if check_matching_strings(countries.get(int(product), []), group):
+            total_picks += pickdata.get(product)
     return total_picks
 
 
-def count_picks_per_country_per_masterarea(solution_cut_in_master_areas):
+def count_picks_per_country_per_masterarea(solution_cut_in_master_areas, countries_dict, pickdata_dict):
+    """
+            Calculates the count of picks per country per masterarea
+
+            Returns:
+            Int: The su of picks of products per country in each masterarea
+            {'m1': {'CH': 125, 'GE': 50, 'NO': 125}, 'm2': {'GE': 175}, 'm3': {'GE': 50, 'SW': 125, 'FI': 100}, 'm4': {'FI': 25, 'NL': 50, 'MT': 25, 'UK': 25, 'FR': 25, 'BE': 25, 'AU': 25, 'SZ': 25, 'DA': 25, 'EI': 25}}
+        """
     picks_per_country_per_masterarea_dict = {}
     for masterArea_name, masterArea_data in solution_cut_in_master_areas.items():
         picks_per_country_dict = {}
         for product in masterArea_data:
             if product != -1:
-                for country in Herb_PyGAD.main.countries.get(product):
+                value = countries_dict.get(int(product))
+                # Ensure value is always a list even if only 1 country is returned we dont want to loop over a string
+                if not isinstance(value, list):
+                    value = [value]
+                for country in value:
                     # Initialize the country key with 0 if it doesn't exist
                     picks_per_country_dict[country] = picks_per_country_dict.get(country, 0)
                     # Add pickdata value to the country, ensuring it's an integer
-                    picks_per_country_dict[country] += Herb_PyGAD.main.pickdata.get(product, 0)
+                    picks_per_country_dict[country] += pickdata_dict.get(product, 0)
         picks_per_country_per_masterarea_dict[masterArea_name] = picks_per_country_dict
     return picks_per_country_per_masterarea_dict

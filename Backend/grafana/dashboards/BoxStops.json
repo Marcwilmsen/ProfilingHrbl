@@ -1,0 +1,156 @@
+{
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": {
+					"type": "grafana",
+					"uid": "-- Grafana --"
+				},
+				"enable": true,
+				"hide": true,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard"
+			}
+		]
+	},
+	"editable": true,
+	"fiscalYearStartMonth": 0,
+	"graphTooltip": 0,
+	"id": 3,
+	"links": [],
+	"liveNow": false,
+	"panels": [
+		{
+			"datasource": {
+				"type": "grafana-postgresql-datasource",
+				"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "continuous-YlBl"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"fillOpacity": 80,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"lineWidth": 1,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "red",
+								"value": 80
+							}
+						]
+					},
+					"unit": "none"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"options": {
+				"barRadius": 0,
+				"barWidth": 0.92,
+				"colorByField": "average_stops_per_box",
+				"fullHighlight": false,
+				"groupWidth": 0.7,
+				"legend": {
+					"calcs": [],
+					"displayMode": "list",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"orientation": "auto",
+				"showValue": "auto",
+				"stacking": "none",
+				"text": {
+					"valueSize": 24
+				},
+				"tooltip": {
+					"mode": "single",
+					"sort": "none"
+				},
+				"xTickLabelRotation": 0,
+				"xTickLabelSpacing": 0
+			},
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-postgresql-datasource",
+						"uid": "a79d6f0a-5ade-455b-8b61-1312f9cbe937"
+					},
+					"editorMode": "code",
+					"format": "table",
+					"rawQuery": true,
+					"rawSql": "WITH BoxStops AS (\n    SELECT\n        o.country,\n        p.box_number,\n        COUNT(p.id) AS stops\n    FROM orders o\n    JOIN order_boxes ob ON o.order_number = ob.order_id\n    JOIN pickdata_entries p ON ob.box_number = p.box_number\n    GROUP BY o.country, p.box_number\n)\nSELECT\n    country,\n    AVG(stops) AS average_stops_per_box\nFROM BoxStops\nGROUP BY country;",
+					"refId": "A",
+					"sql": {
+						"columns": [
+							{
+								"parameters": [],
+								"type": "function"
+							}
+						],
+						"groupBy": [
+							{
+								"property": {
+									"type": "string"
+								},
+								"type": "groupBy"
+							}
+						],
+						"limit": 50
+					}
+				}
+			],
+			"title": "Panel Title",
+			"type": "barchart"
+		}
+	],
+	"refresh": "",
+	"schemaVersion": 39,
+	"tags": [],
+	"templating": {
+		"list": []
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
+	"timepicker": {},
+	"timezone": "",
+	"title": "ø box stops per country",
+	"uid": "e3a10afa-c221-411e-863e-afa290d9fe60",
+	"version": 3,
+	"weekStart": ""
+}

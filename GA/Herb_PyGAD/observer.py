@@ -1,4 +1,4 @@
-class PyGADObserver:
+class PyGADObservable:
     def __init__(self):
         self.observers = []
 

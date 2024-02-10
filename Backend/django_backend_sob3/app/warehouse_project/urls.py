@@ -19,5 +19,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('warehouse_app.urls')),  # replace 'your_app_name' with the name of your app
+    path('', include('warehouse_app.urls')),  # replace 'your_app_name' with the name of your app..
 ]

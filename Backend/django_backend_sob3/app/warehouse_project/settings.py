@@ -10,12 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Media files (uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -26,8 +29,16 @@ SECRET_KEY = "django-insecure-t7&opz*9%5r3zyxt@i0z40c$_fo9&8s+p*l%lghasj%g$s6-^x
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['161.97.173.83', 'localhost', 'dev_django_backend_service', '127.0.0.1' , '0.0.0.0', 'backend.sod3.eu',  'dev-backend.sod3.eu']
+# settings.py
 
+# Celery settings
+CELERY_BROKER_URL = 'redis://161.97.173.83:6379/0'
+CELERY_RESULT_BACKEND = 'redis://161.97.173.83:6379/0'
+# Ensure Celery app is loaded when Django starts
+from .celery import app as celery_app
+
+__all__ = ('celery_app',)
 
 # Application definition
 
@@ -41,7 +52,9 @@ INSTALLED_APPS = [
     'rest_framework',
     "corsheaders",
     "warehouse_app",
+    'channels',
 ]
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -73,27 +86,35 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "warehouse_project.wsgi.application"
+ASGI_APPLICATION = 'warehouse_project.asgi.application'
 
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path='./.env')
 
 # Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
+# https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': "postgres",
-        'USER': "postgres",
-        'PASSWORD': "31SUwubrZ1UcF2wp",
-        'HOST': "92.68.232.34",
-        'PORT': "5433",
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'postgres'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),  # Set to empty string for localhost
+        'PORT': os.environ.get('DB_PORT', '5433'),
     }
+}
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('161.97.173.83', 6379)],  # Update this with your Redis server address
+        },
+    },
 }
 
 
@@ -115,7 +136,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -126,7 +146,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
@@ -145,3 +164,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 # "https://example.com",    # Replace with your frontend's domain
 # ]
 # CORS_URLS_REGEX = r'^/api/.*$'  # Enable CORS for paths that start with /api/
+
+
+

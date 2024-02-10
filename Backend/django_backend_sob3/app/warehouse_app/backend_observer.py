@@ -1,15 +1,25 @@
 import json
-from .db_functions import Results, Historicalresults
+import os
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "warehouse_project.settings")
+django.setup()
+from sqlalchemy import text
 from datetime import datetime
-from .models import SKU, Location, Order, OrderBox, PickData, PickData_Entries, SessionLocal, WarehouseProfile,  WarehouseSolutionProfile, ZipZap, ZipZapEntries, SolutionPicksPerCountryPerMasterArea, SolutionPicksPerCountryPerMasterAreaEntrys, WarehouseLocationAssignment, SolutionLocationAssignment
+from .models import SessionLocal, HistoricalResults ,Results, Location, WarehouseSolutionProfile, ZipZap, ZipZapEntries, SolutionPicksPerCountryPerMasterArea, SolutionPicksPerCountryPerMasterAreaEntrys, SolutionLocationAssignment, WarehouseSolutionStartParameter
 import time
+from warehouse_project.send_message_to_frontend import *
+from sqlalchemy.exc import OperationalError
+from django.dispatch import Signal
 
-
-class Observable():
+# Define the signal without providing_args
+websocket_message_signal = Signal()
+class Observer():
     def __init__(self):
         self.batched_generations = []
         self.batch_size = 100  # Number of generations to batch before insertion
         self.location_cache = None
+        self.last_insert_time = None  # Track the last insert time
+
 
     def load_location_cache(self):
         with SessionLocal() as session:
@@ -26,7 +36,6 @@ class Observable():
 
     def getResult(self, message):
         result = Results()
-        print("Generation: ", message.get("generation"))
         result.generation = message.get("generation")
         solution_dict = dict(zip(message.get("locations"),
                              self.convert_to_SKU(message.get("solution"))))
@@ -35,13 +44,13 @@ class Observable():
         return result
 
     def getHistoricalresult(self, message):
-        result = Historicalresults()
+        result = HistoricalResults()
         result.date = datetime.today().strftime('%Y-%m-%d')
         solution_dict = dict(zip(message.get("locations"),
                              self.convert_to_SKU(message.get("solution"))))
         result.solution = json.dumps(solution_dict)
         result.fitness = message.get("solution_fitness")
-        print(message.get("distribution_per_zone_per_country"))
+        #print(message.get("distribution_per_zone_per_country"))
         return result
 
     def getWarehouseSolutionLocationAssignments(self, solution_dict, warehouse_solution_profile):
@@ -96,7 +105,7 @@ class Observable():
     def createFinalSolutionWithEntrys(self, message):
         with SessionLocal() as session:
             try:
-                print("Starting session...")  # To confirm the session starts
+                print("Starting session...")
 
                 # Create WarehouseSolutionProfile
                 solution_generation_profile = WarehouseSolutionProfile(
@@ -104,24 +113,18 @@ class Observable():
                     creation_timestamp=datetime.now()
                 )
                 # Print the profile details
-                print(
-                    f"Creating WarehouseSolutionProfile: {solution_generation_profile}")
-
+                #print(f"Creating WarehouseSolutionProfile: {solution_generation_profile}")
                 session.add(solution_generation_profile)
                 session.commit()
-
                 # Prepare and add ZoneEntries
                 solution_dict = dict(
                     zip(message.get("locations"), message.get("solution")))
                 # Print the solution dictionary
-                print(f"Solution Dict: {solution_dict}")
-
+                #print(f"Solution Dict: {solution_dict}")
                 warehouse_location_assingments = self.getWarehouseSolutionLocationAssignments(
                     solution_dict, solution_generation_profile)
                 # Print assignments
-                print(
-                    f"Warehouse Location Assignments: {warehouse_location_assingments}")
-
+                #print(f"Warehouse Location Assignments: {warehouse_location_assingments}")
                 session.bulk_save_objects(
                     warehouse_location_assingments)  # Bulk operation
                 session.commit()  # Committing after bulk operations
@@ -165,35 +168,60 @@ class Observable():
                 session.rollback()
                 print(
                     f"An error occurred while inserting solution picks data: {e}")
+                send_message_to_all(f"An error occurred while inserting solution picks data: {e}")
                 raise
 
-    def createBatchGenerationWithEntrys(self, batched_messages):
+
+    def insertZipZaps(self, historic_result_id, solution_profile_id, message):
         with SessionLocal() as session:
+            print("im in insert zip zap")
+            zipzapss = message.get("zipzap", {})
+            print("ZIP ZAP: ", zipzapss)
             try:
-                # Bulk operation for adding assignments
-                for message in batched_messages:
-                    solution_dict = dict(
-                        zip(message.get("locations"), message.get("solution")))
-                    warehouse_location_assignments = self.getWarehouseSolutionLocationAssignments(
-                        solution_dict, WarehouseSolutionProfile(
-                            name=f"Generation_{message.get('generation')}", creation_timestamp=datetime.now())
+                # Create WarehouseSolutionProfile
+                zipzap = ZipZap(
+                    historic_result_id=historic_result_id,
+                    warehouse_solution_profile_id=solution_profile_id
                     )
-                    session.bulk_save_objects(warehouse_location_assignments)
+                session.add(zipzap)
                 session.commit()
-                return True
+
+                for expected, current in message["zipzap"]:
+                    print("zap expected: ", expected, " current: ", current)
+                    zipzapentry = ZipZapEntries(
+                    zipzap_id=zipzap.id,
+                    expected=expected,
+                    actual=current
+                    )
+                    session.add(zipzapentry)
+                session.commit()
+                print(f"Successfully inserted zipzap data")
 
             except Exception as e:
                 session.rollback()
                 print(f"An error occurred: {e}")
-                raise
+                send_message_to_all(f"An error occurred while trying to insert the solution zipzap data: {e}")
+                raise e
             finally:
                 session.close()
 
+
     def update(self, message):
-        # Logic to handle the message from pygad
+      # Logic to handle the message from pygad
         if message.get("result_type") == "FINAL_result":
             processing_start = time.time()
             print("Final message received")
+
+            # Create a new session and test the connection
+            session = SessionLocal()
+            try:
+                # Test the connection using text-based SQL
+                session.execute(text('SELECT 1'))
+            except OperationalError:
+                print("Database connection failed, trying to reconnect")
+                session = SessionLocal()  # Try to establish a new session
+                session.execute(text('SELECT 1'))  # Re-test the connection
+
 
             print("Backend distribution_per_zone_per_country received: ",
                   message.get("distribution_per_zone_per_country"))
@@ -201,67 +229,59 @@ class Observable():
             print("Picks: ", message["distribution_per_country"])
             print("Print distribution_per_country: ",
                   message["distribution_per_country"])
-            result = self.getHistoricalresult(message)
-            result.save()
-            print("Saved Historical Result!")
-            # RELATIONAL INSERT
-            processing_start = time.time()
-            solution_profile_id = self.createFinalSolutionWithEntrys(message)
+            print("Print ZipZaps: ",
+                  message.get("zipzap"))
+            
+            current_time = datetime.now()
+                # Check if we have a last insert time and if it's within 5 seconds
+            print("current time:", current_time,  " last innsert time:", self.last_insert_time)
+            if self.last_insert_time and (current_time - self.last_insert_time).total_seconds() < 5:
+                print("SKIPPING insertion, last insertion was less than 5 seconds ago.")
+                return None  # Or however you'd like to handle the skip
+            
 
-            if isinstance(solution_profile_id, int):
-                print("successfully processed final result insert: ",
-                      solution_profile_id)
-                # Insert solution picks data
-                self.insert_solution_picks_data(
-                    message, solution_profile_id, result.id)
+            try:
+                #store historic result as json (not relational)
+                result = self.getHistoricalresult(message)
+                session.add(result)
+                session.commit() 
+                # RELATIONAL INSERT
+                solution_profile_id = self.createFinalSolutionWithEntrys(message)
+                if isinstance(solution_profile_id, int):
+                    highest_end_start_row = session.query(WarehouseSolutionStartParameter).order_by(WarehouseSolutionStartParameter.id.desc()).first()
 
-                with SessionLocal() as session:
-                    try:
-                        # Create WarehouseSolutionProfile
-                        zipzap = ZipZap(
-                            historic_result_id=result.id,
-                            warehouse_solution_profile_id=solution_profile_id
-                        )
-                        session.add(zipzap)
+                    print("before ifhigheststart row:", highest_end_start_row.number_of_generations)
+                    if highest_end_start_row:
+                            # Update the start row with the solution profile ID
+                            # Ensure the model has a field to store the solution_profile_id
+                        print("higheststart row:", highest_end_start_row.number_of_generations)
+                        highest_end_start_row.warehouse_solution_profile_id = solution_profile_id
                         session.commit()
 
-                        for expected, current in message["zipzap"]:
-                            zipzapentries = ZipZapEntries(
-                                zipzap_id=zipzap.id,
-                                expected=expected,
-                                actual=current
-                            )
-                            session.add(zipzapentries)
-                        session.commit()
-                        processing_end = time.time()
-                        print(
-                            f"Solution DB insertion:  {processing_end - processing_start} seconds.")
+                    # Insert solution picks data
+                    self.insert_solution_picks_data(
+                        message, solution_profile_id, result.id)
+                    self.insertZipZaps(result.id, solution_profile_id, message)
 
-                    except Exception as e:
-                        session.rollback()
-                        print(f"An error occurred: {e}")
-                        raise e
-                    finally:
-                        session.close()
+                    self.last_insert_time = current_time  # Update the last insert time after successful insertion
+                    processing_end = time.time()
+                    print(f"successfully processed final result insert: {solution_profile_id} in  {processing_end - processing_start} seconds.")
+                    send_message_to_all(f"successfully processed final result insert: {solution_profile_id} in  {processing_end - processing_start} seconds.")
+
+            except Exception as e:
+                print(f"An error occurred while trying to insert the solution: {e}")
+                send_message_to_all(f"An error occurred while trying to insert the solution: {e}")
+
+                session.rollback()
+            finally:
+                session.close()
+                processing_end = time.time()
+                print(f"Processing completed in {processing_end - processing_start} seconds")
+                send_message_to_all(f"Processing completed in {processing_end - processing_start} seconds")
+
 
         elif message.get("result_type") == "MID_result":
-            processing_start = time.time()
+            print(f"GENERATION: {message.get('generation')}")
+            rounded_percentage = round(float(message.get('progess_in_percent')), 2)
+            send_message_to_all(f"{rounded_percentage}% - GENERATION: {message.get('generation')} OF  {message.get('max_generations')}")
 
-            # result = self.getResult(message)
-            # result.save()
-
-            self.batched_generations.append(message)
-            if len(self.batched_generations) >= self.batch_size:
-                processing_start = time.time()
-                self.createBatchGenerationWithEntrys(self.batched_generations)
-                self.batched_generations = []  # Reset the batch
-                processing_end = time.time()
-                print(
-                    f"Batched solution DB insertion: {processing_end - processing_start} seconds.")
-
-            processing_end = time.time()
-            print(
-                f"GENERATION DB insertion:  {processing_end - processing_start} seconds.")
-
-        else:
-            print("Something went wrong bro")

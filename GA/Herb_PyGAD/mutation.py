@@ -21,7 +21,7 @@ def custom_mutation(offspring, ga_instance):
         random_gene_idx_2 = np.random.choice(range(offspring.shape[1]))
 
         # Swap values
-        value = offspring[chromosome_idx, random_gene_idx_1]
-        offspring[chromosome_idx, random_gene_idx_1] = offspring[chromosome_idx, random_gene_idx_2]
-        offspring[chromosome_idx, random_gene_idx_2] = value
+        # value = offspring[chromosome_idx, random_gene_idx_1]
+        # offspring[chromosome_idx, random_gene_idx_1] = offspring[chromosome_idx, random_gene_idx_2]
+        # offspring[chromosome_idx, random_gene_idx_2] = value
     return offspring
